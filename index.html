@@ -135,7 +135,7 @@
         var aiSuggestion = "";
         var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
 
-        // --- ফাংশনগুলো Global Scope ---
+        // --- ফাংশন ---
         function updateUI() {
             var userName = localStorage.getItem('user_name');
             if(userName) {
@@ -263,38 +263,39 @@
             .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "অর্ডার কনফার্ম করুন"; });
         }
 
-        // ৩. ম্যাপ ইনিশিয়ালাইজেশন এবং অটো-ডিটেক্ট লজিক
+        // --- মেইন লজিক (Auto Switch) ---
         window.onload = function() {
             updateUI();
 
             try {
                 map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
 
-                // 🔥 অটো ডিটেকশন লজিক 🔥
-                var isLocalOrApp = window.location.protocol === 'file:' || navigator.userAgent.includes('Messenger');
-                
-                var googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                    maxZoom: 20, attribution: '© Google', referrerPolicy: 'no-referrer'
-                });
-
+                // ১. শুরুতে নিরাপদ ম্যাপ (Esri) লোড করা (যাতে গ্রে স্ক্রিন না আসে)
                 var esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     maxZoom: 18, attribution: 'Esri'
+                }).addTo(map);
+
+                // ২. গুগল ম্যাপ রেডি রাখা (কিন্তু প্রথমে এড না করা)
+                var googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20, 
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], // মাল্টি সার্ভার
+                    attribution: '© Google',
+                    referrerPolicy: 'no-referrer'
                 });
 
-                // যদি অ্যাপ বা লোকাল ফাইল হয় -> Esri (নিরাপদ)
-                // যদি ক্রোম বা ওয়েবসাইট হয় -> Google (বেস্ট কোয়ালিটি)
-                if (isLocalOrApp) {
-                    esriSat.addTo(map); 
-                } else {
-                    googleSat.addTo(map);
-                }
-
-                // লেয়ার কন্ট্রোল (User can switch)
-                var baseMaps = { "Google Satellite": googleSat, "Professional Map (Esri)": esriSat };
+                // ৩. লেয়ার কন্ট্রোল যুক্ত করা
+                var baseMaps = {
+                    "Professional Map (Esri)": esriSat,
+                    "Google Satellite": googleSat
+                };
                 L.control.layers(baseMaps).addTo(map);
 
-                // জিওকোডার এবং অন্যান্য
-                L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
-                .on('markgeocode', function(e) {
-                    var bbox = e.geocode.bbox;
-                    var poly = L.polygon(
+                // 🔥 জাদুর ট্রিক: ২ সেকেন্ড পর অটোমেটিক গুগলে সুইচ করবে 🔥
+                setTimeout(function() {
+                    // যদি ইউজার ম্যানুয়ালি চেঞ্জ না করে থাকে, তবেই সুইচ করো
+                    if(map.hasLayer(esriSat)) {
+                        map.removeLayer(esriSat);
+                        googleSat.addTo(map);
+                        console.log("Auto-switched to Google Maps");
+                    }
+                }, 2000); // ২০
