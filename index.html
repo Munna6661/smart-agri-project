@@ -15,9 +15,9 @@
 
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #map { height: 100vh; width: 100%; z-index: 1; background: #e0e0e0; }
+        #map { height: 100vh; width: 100%; z-index: 1; background: #202020; }
 
-        /* বাটন ডিজাইন */
+        /* বাটন ও ডিজাইন */
         #dashboard-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px; }
         #logout-btn { position: absolute; top: 20px; right: 60px; background: #ff5252; color: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; display: none; align-items: center; gap: 5px; font-size: 14px; }
         #back-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2001; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; display: none; text-decoration: none; color: #333; align-items: center; gap: 5px; }
@@ -127,6 +127,7 @@
     </div>
 
     <script>
+        // --- গ্লোবাল ভেরিয়েবল (Global Variables) ---
         var map;
         var points = []; 
         var markers = []; 
@@ -135,7 +136,8 @@
         var aiSuggestion = "";
         var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
 
-        // --- ফাংশন ---
+        // --- ফাংশনসমূহ (Global Functions) ---
+        
         function updateUI() {
             var userName = localStorage.getItem('user_name');
             if(userName) {
@@ -263,39 +265,35 @@
             .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "অর্ডার কনফার্ম করুন"; });
         }
 
-        // --- মেইন লজিক (Auto Switch) ---
+        // --- ম্যাপ লোড ও কনফিগারেশন ---
         window.onload = function() {
             updateUI();
 
             try {
                 map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
 
-                // ১. শুরুতে নিরাপদ ম্যাপ (Esri) লোড করা (যাতে গ্রে স্ক্রিন না আসে)
+                // 🔥 ডিফল্ট ম্যাপ: Esri (Professional Map) - এটি কখনো ক্র্যাশ করবে না 🔥
                 var esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
                     maxZoom: 18, attribution: 'Esri'
                 }).addTo(map);
 
-                // ২. গুগল ম্যাপ রেডি রাখা (কিন্তু প্রথমে এড না করা)
+                // অপশনাল ম্যাপ: Google Satellite
                 var googleSat = L.tileLayer('https://{s}.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
                     maxZoom: 20, 
-                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], // মাল্টি সার্ভার
+                    subdomains: ['mt0', 'mt1', 'mt2', 'mt3'], 
                     attribution: '© Google',
                     referrerPolicy: 'no-referrer'
                 });
 
-                // ৩. লেয়ার কন্ট্রোল যুক্ত করা
+                // লেয়ার কন্ট্রোল (ডানদিকের অপশন)
                 var baseMaps = {
-                    "Professional Map (Esri)": esriSat,
-                    "Google Satellite": googleSat
+                    "Professional Map (Esri)": esriSat, // ডিফল্ট সিলেকশন
+                    "Google Satellite": googleSat      // ইউজার চাইলে সুইচ করবে
                 };
                 L.control.layers(baseMaps).addTo(map);
 
-                // 🔥 জাদুর ট্রিক: ২ সেকেন্ড পর অটোমেটিক গুগলে সুইচ করবে 🔥
-                setTimeout(function() {
-                    // যদি ইউজার ম্যানুয়ালি চেঞ্জ না করে থাকে, তবেই সুইচ করো
-                    if(map.hasLayer(esriSat)) {
-                        map.removeLayer(esriSat);
-                        googleSat.addTo(map);
-                        console.log("Auto-switched to Google Maps");
-                    }
-                }, 2000); // ২০
+                // জিওকোডার ও অন্যান্য ফিচার
+                L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
+                .on('markgeocode', function(e) {
+                    var bbox = e.geocode.bbox;
+                    var poly = L.polygon([bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNor
