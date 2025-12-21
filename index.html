@@ -8,15 +8,14 @@
     <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script> <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        
-        /* ব্যাকগ্রাউন্ড এখন হালকা গ্রে, যাতে কালো না দেখায় */
-        #map { height: 100vh; width: 100%; z-index: 1; background: #ddd; }
+        #map { height: 100vh; width: 100%; z-index: 1; background: #e0e0e0; }
 
-        /* বাটন ডিজাইন */
+        /* বাটন ও ডিজাইন */
         #dashboard-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px; }
         #logout-btn { position: absolute; top: 20px; right: 60px; background: #ff5252; color: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; display: none; align-items: center; gap: 5px; font-size: 14px; }
         #back-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2001; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; display: none; text-decoration: none; color: #333; align-items: center; gap: 5px; }
@@ -40,12 +39,14 @@
         .submit-btn { width: 100%; background: #4CAF50; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 10px; }
         .cancel-btn { background: transparent; color: #777; width: 100%; padding: 10px; border: none; margin-top: 5px; }
         
+        /* স্ক্যানার */
         #scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: #39FF14; box-shadow: 0 0 15px #39FF14; z-index: 1500; display: none; animation: scanMove 2s infinite linear; }
         @keyframes scanMove { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
         #scan-btn { width: 100%; background: linear-gradient(45deg, #2196F3, #21CBF3); color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3); }
         #analysis-result { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 5px solid #2196F3; display: none; animation: fadeIn 0.5s; }
         @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
 
+        /* মডাল */
         .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: none; justify-content: center; align-items: center; z-index: 5000; }
         .modal-box { background: white; padding: 25px; width: 90%; max-width: 350px; border-radius: 15px; position: relative; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
         .close-btn { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; }
@@ -124,12 +125,17 @@
         </div>
     </div>
 
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-
     <script>
+        // গ্লোবাল ভেরিয়েবল
+        var map, polygonLayer;
+        var points = []; 
+        var markers = []; 
+        var finalArea = 0; 
+        var aiSuggestion = "";
         var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
-        
+
+        // --- ফাংশনগুলো গ্লোবাল স্কোপে রাখা হলো ---
+
         function updateUI() {
             var userName = localStorage.getItem('user_name');
             if(userName) {
@@ -140,73 +146,6 @@
                 document.getElementById('logout-btn').style.display = 'none';
             }
         }
-        updateUI();
-
-        function logout() {
-            if(confirm("লগআউট করতে চান?")) {
-                localStorage.removeItem('user_phone');
-                localStorage.removeItem('user_name');
-                alert("লগআউট সফল!");
-                updateUI();
-                window.location.href = 'login.html';
-            }
-        }
-
-        var map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
-        
-        // 🔥 ডুয়েল ম্যাপ লেয়ার সিস্টেম (Dual Layer System) 🔥
-        
-        // ১. গুগল হাইব্রিড (ডিফল্ট)
-        var googleHybrid = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-            maxZoom: 20,
-            attribution: 'Google'
-        });
-
-        // ২. নরমাল ম্যাপ (ব্যাকআপ) - যদি গুগল না চলে, এটি চলবেই
-        var openStreetMap = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
-            maxZoom: 19,
-            attribution: 'OSM'
-        });
-
-        // ডিফল্ট হিসেবে গুগল লোড হবে
-        googleHybrid.addTo(map);
-
-        // লেয়ার কন্ট্রোল বাটন যুক্ত করা হলো (ডানদিকের কোণায়)
-        var baseMaps = {
-            "Google Satellite": googleHybrid,
-            "Normal Map": openStreetMap
-        };
-        L.control.layers(baseMaps).addTo(map);
-
-        L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
-        .on('markgeocode', function(e) {
-            var bbox = e.geocode.bbox;
-            var poly = L.polygon([bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()]);
-            map.fitBounds(poly.getBounds());
-        }).addTo(map);
-
-        var points = []; var markers = []; var polygonLayer = null; var finalArea = 0; var aiSuggestion = "";
-
-        window.onload = function() {
-            updateUI();
-            var storedData = localStorage.getItem('viewLand');
-            if(storedData) {
-                try {
-                    var landPoints = JSON.parse(storedData);
-                    showSavedLand(landPoints);
-                    localStorage.removeItem('viewLand');
-                } catch(e) {}
-            }
-        };
-
-        function showSavedLand(savedPoints) {
-            document.getElementById('start-btn-container').style.display = 'none';
-            document.getElementById('dashboard-btn').style.display = 'none';
-            document.getElementById('logout-btn').style.display = 'none';
-            document.getElementById('back-btn').style.display = 'flex';
-            var polygon = L.polygon(savedPoints, { color: '#39FF14', weight: 4, fillColor: '#39FF14', fillOpacity: 0.5 }).addTo(map);
-            map.fitBounds(polygon.getBounds(), {padding: [50, 50]});
-        }
 
         function startMappingMode() {
             document.getElementById('start-btn-container').style.display = 'none';
@@ -214,26 +153,54 @@
             document.getElementById('crosshair-icon').style.display = 'block';
             document.getElementById('msg-box').style.display = 'block';
         }
+
         function addPoint() {
-            var center = map.getCenter(); points.push([center.lat, center.lng]);
+            if(!map) return;
+            var center = map.getCenter(); 
+            points.push([center.lat, center.lng]);
             var marker = L.circleMarker([center.lat, center.lng], { color: 'white', fillColor: '#39FF14', fillOpacity: 1, radius: 5 }).addTo(map);
-            markers.push(marker); drawPolygon();
+            markers.push(marker); 
+            drawPolygon();
             if(points.length >= 3) { document.getElementById('done-btn').style.display = 'flex'; document.getElementById('msg-box').innerText = "পরের কোণায় যান বা শেষ চাপুন"; }
         }
-        function drawPolygon() { if (polygonLayer) map.removeLayer(polygonLayer); if (points.length > 0) { polygonLayer = L.polygon(points, { color: '#39FF14', weight: 3, fillColor: '#39FF14', fillOpacity: 0.3 }).addTo(map); } }
-        function undoPoint() { if(points.length > 0) { points.pop(); map.removeLayer(markers.pop()); drawPolygon(); if(points.length < 3) document.getElementById('done-btn').style.display = 'none'; } }
+
+        function drawPolygon() { 
+            if(!map) return;
+            if (polygonLayer) map.removeLayer(polygonLayer); 
+            if (points.length > 0) { polygonLayer = L.polygon(points, { color: '#39FF14', weight: 3, fillColor: '#39FF14', fillOpacity: 0.3 }).addTo(map); } 
+        }
+
+        function undoPoint() { 
+            if(points.length > 0) { 
+                points.pop(); 
+                if(markers.length > 0) map.removeLayer(markers.pop()); 
+                drawPolygon(); 
+                if(points.length < 3) document.getElementById('done-btn').style.display = 'none'; 
+            } 
+        }
+
         function finishDrawing() {
-            var turfPoints = [...points, points[0]]; var geoJsonPoints = turfPoints.map(p => [p[1], p[0]]); var polygon = turf.polygon([geoJsonPoints]);
-            var areaSqMeters = turf.area(polygon); finalArea = (areaSqMeters / 40.4686).toFixed(2);
-            map.fitBounds(polygonLayer.getBounds(), {padding: [50, 50]});
+            if(points.length < 3) return;
+            var turfPoints = [...points, points[0]]; 
+            var geoJsonPoints = turfPoints.map(p => [p[1], p[0]]); 
+            var polygon = turf.polygon([geoJsonPoints]);
+            var areaSqMeters = turf.area(polygon); 
+            finalArea = (areaSqMeters / 40.4686).toFixed(2);
+            if(polygonLayer) map.fitBounds(polygonLayer.getBounds(), {padding: [50, 50]});
             document.getElementById('area-val').innerText = finalArea;
             document.getElementById('form-box').classList.add('active');
             document.getElementById('control-bar').style.display = 'none';
             document.getElementById('crosshair-icon').style.display = 'none';
             document.getElementById('msg-box').style.display = 'none';
         }
+
         function resetMap() {
-            points = []; markers.forEach(m => map.removeLayer(m)); markers = []; if(polygonLayer) map.removeLayer(polygonLayer);
+            if(map) {
+                points = []; 
+                markers.forEach(m => map.removeLayer(m)); 
+                markers = []; 
+                if(polygonLayer) map.removeLayer(polygonLayer);
+            }
             document.getElementById('form-box').classList.remove('active');
             document.getElementById('start-btn-container').style.display = 'flex';
             document.getElementById('control-bar').style.display = 'none';
@@ -241,20 +208,39 @@
             document.getElementById('done-btn').style.display = 'none';
             document.getElementById('msg-box').style.display = 'none';
             document.getElementById('analysis-result').style.display = 'none';
-            document.getElementById('scan-btn').innerText = "স্যাটেলাইট চেক"; document.getElementById('scan-btn').disabled = false;
+            document.getElementById('scan-btn').innerText = "স্যাটেলাইট চেক"; 
+            document.getElementById('scan-btn').disabled = false;
         }
+
         function scanLand() {
-            var scanner = document.getElementById('scanner-line'); var btn = document.getElementById('scan-btn'); var resultBox = document.getElementById('analysis-result'); var status = document.getElementById('scan-status');
-            scanner.style.display = 'block'; btn.disabled = true; btn.innerText = "স্ক্যান চলছে..."; resultBox.style.display = 'none';
+            var scanner = document.getElementById('scanner-line'); 
+            var btn = document.getElementById('scan-btn'); 
+            var resultBox = document.getElementById('analysis-result'); 
+            var status = document.getElementById('scan-status');
+            scanner.style.display = 'block'; 
+            btn.disabled = true; 
+            btn.innerText = "স্ক্যান চলছে..."; 
+            resultBox.style.display = 'none';
             setTimeout(function() {
-                scanner.style.display = 'none'; btn.innerText = "✔ অ্যানালাইসিস সম্পন্ন"; resultBox.style.display = 'block';
-                var center = map.getCenter(); var lat = center.lat; var soilType = "দোআঁশ মাটি"; var crop = "আলু, গম";
+                scanner.style.display = 'none'; 
+                btn.innerText = "✔ অ্যানালাইসিস সম্পন্ন"; 
+                resultBox.style.display = 'block';
+                var center = map ? map.getCenter() : {lat: 23.8, lng: 90.4}; 
+                var lat = center.lat; 
+                var soilType = "দোআঁশ মাটি"; 
+                var crop = "আলু, গম";
                 if(lat > 24) { soilType = "বেলে-দোঁআশ"; crop = "ভুট্টা, বাদাম"; } else if (lat < 23) { soilType = "লবণাক্ত মাটি"; crop = "নারকেল"; }
-                aiSuggestion = "মাটি: " + soilType + "। ফসল: " + crop; status.innerHTML = "<strong>মাটি:</strong> " + soilType + "<br><strong>পরামর্শ:</strong> " + crop;
+                aiSuggestion = "মাটি: " + soilType + "। ফসল: " + crop; 
+                status.innerHTML = "<strong>মাটি:</strong> " + soilType + "<br><strong>পরামর্শ:</strong> " + crop;
             }, 3000);
         }
-        function locateUser() { var btn = document.querySelector('.gps-btn'); btn.style.background = '#ddd'; map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true, timeout: 8000 }); }
-        map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
+
+        function locateUser() { 
+            if(!map) return;
+            var btn = document.querySelector('.gps-btn'); 
+            btn.style.background = '#ddd'; 
+            map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true, timeout: 8000 }); 
+        }
 
         function checkAuthAndSave() {
             var phone = localStorage.getItem('user_phone');
@@ -282,4 +268,43 @@
             updateUI(); closeLoginModal(); saveData(phone, name);
         }
         function saveData(phone, name) {
-            var service = document.getElementById('serviceType').value; var btn = document.querySelector('.submit-btn');
+            var service = document.getElementById('serviceType').value; var btn = document.querySelector('.submit-btn'); btn.innerText = "অর্ডার প্লেস হচ্ছে...";
+            var data = { name: name, phone: phone, landSize: finalArea, points: points, suggestion: aiSuggestion, serviceType: service };
+            fetch(scriptURL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+            .then(() => { alert("✅ অর্ডার সফল!"); resetMap(); btn.innerText = "অর্ডার কনফার্ম করুন"; })
+            .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "অর্ডার কনফার্ম করুন"; });
+        }
+        function logout() {
+            if(confirm("লগআউট করতে চান?")) {
+                localStorage.removeItem('user_phone');
+                localStorage.removeItem('user_name');
+                alert("লগআউট সফল!");
+                updateUI();
+                window.location.href = 'login.html';
+            }
+        }
+
+        // --- ম্যাপ লোড ---
+        window.onload = function() {
+            updateUI();
+
+            try {
+                if (typeof L === 'undefined') throw new Error("Leaflet লাইব্রেরি লোড হয়নি!");
+
+                map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
+
+                // 🔥 Google Satellite Map 🔥
+                L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    attribution: '© Google',
+                    referrerPolicy: 'no-referrer'
+                }).addTo(map);
+
+                L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
+                .on('markgeocode', function(e) {
+                    var bbox = e.geocode.bbox;
+                    var poly = L.polygon([bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()]);
+                    map.fitBounds(poly.getBounds());
+                }).addTo(map);
+
+                map.on('locationfound', function(e) { document.querySelector('.gps-btn').st
