@@ -1,6 +1,4 @@
-tive');
-            document.getElementById('start-btn-container').style.display = 'flex';
-     <!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -16,7 +14,7 @@ tive');
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* ড্যাশবোর্ড বাটন (উপরে বামে) */
+        /* ড্যাশবোর্ড বাটন */
         #dashboard-btn { 
             position: absolute; top: 20px; left: 20px; 
             background: white; padding: 10px 15px; border-radius: 8px; 
@@ -24,7 +22,7 @@ tive');
             font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px;
         }
 
-        /* ব্যাক বাটন (শুধুমাত্র ভিউ মোডে দেখাবে) */
+        /* ব্যাক বাটন */
         #back-btn { 
             position: absolute; top: 20px; left: 20px; 
             background: white; padding: 10px 15px; border-radius: 8px; 
@@ -61,7 +59,6 @@ tive');
     <div id="map"></div>
     
     <a id="dashboard-btn" href="Dashboard.html"><i class="fas fa-list"></i> লিস্ট দেখুন</a>
-
     <a id="back-btn" href="Dashboard.html"><i class="fas fa-arrow-left"></i> ফিরে যান</a>
 
     <div class="crosshair" id="crosshair-icon"><i class="fas fa-plus-circle"></i></div>
@@ -95,7 +92,7 @@ tive');
     <script>
         var map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
         
-        // 🔥 ফিক্সড: HTTPS Google Hybrid Map (গিটহাবে কাজ করবে) 🔥
+        // Google Hybrid Map (HTTPS)
         L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
             maxZoom: 20,
             attribution: '© Google'
@@ -126,8 +123,8 @@ tive');
 
         function showSavedLand(savedPoints) {
             document.getElementById('start-btn-container').style.display = 'none';
-            document.getElementById('dashboard-btn').style.display = 'none'; // মেইন বাটন লুকান
-            document.getElementById('back-btn').style.display = 'flex'; // ব্যাক বাটন দেখান
+            document.getElementById('dashboard-btn').style.display = 'none';
+            document.getElementById('back-btn').style.display = 'flex';
             
             var polygon = L.polygon(savedPoints, {
                 color: '#39FF14', weight: 4, fillColor: '#39FF14', fillOpacity: 0.5
@@ -210,35 +207,5 @@ tive');
         }
     </script>
 </body>
-</html>
-       document.getElementById('control-bar').style.display = 'none';
-            document.getElementById('crosshair-icon').style.display = 'none';
-            document.getElementById('done-btn').style.display = 'none';
-            document.getElementById('msg-box').style.display = 'none';
-        }
-
-        function locateUser() {
-            var btn = document.querySelector('.gps-btn'); btn.style.background = '#ddd';
-            map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true, timeout: 8000 });
-        }
-        map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
-        map.on('locationerror', function(e) { document.querySelector('.gps-btn').style.background = 'white'; alert("⚠️ জিপিএস সমস্যা! দয়া করে সার্চ বাটন ব্যবহার করুন।"); });
-
-        function saveData() {
-            var name = document.getElementById('username').value;
-            var phone = document.getElementById('userphone').value;
-            var btn = document.querySelector('.submit-btn');
-            if(!name || !phone) { alert("নাম ও নাম্বার দিন!"); return; }
-            btn.innerText = "পাঠানো হচ্ছে...";
+            </html>
             
-            // 🔥 Points সহ ডাটা পাঠানো হচ্ছে 🔥
-            var data = { name: name, phone: phone, landSize: finalArea, points: points };
-            var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
-
-            fetch(scriptURL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(() => { alert("✅ সফলভাবে রেজিস্ট্রেশন হয়েছে!"); resetMap(); btn.innerText = "রেজিস্ট্রেশন কনফার্ম"; })
-            .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "রেজিস্ট্রেশন কনফার্ম"; });
-        }
-    </script>
-</body>
-</html>
