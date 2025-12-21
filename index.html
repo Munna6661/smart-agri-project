@@ -1,0 +1,199 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <title>Smart Agri Map</title>
+    
+    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        /* ব্যাক বাটন (View Mode এর জন্য) */
+        #back-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            background: white; padding: 10px 15px; border-radius: 8px; 
+            z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+            font-weight: bold; cursor: pointer; display: none; 
+            text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px;
+        }
+
+        /* সাধারণ বাটন ও কন্ট্রোল */
+        .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
+        .crosshair i { font-size: 40px; color: #fff; text-shadow: 0 0 5px #000; }
+        
+        #start-btn-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 80%; display: flex; justify-content: center; }
+        .btn-start { background: #4CAF50; color: white; border: none; padding: 15px 30px; border-radius: 50px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center; }
+        
+        .controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 1000; display: none; }
+        .btn-action { background: white; border: none; padding: 15px 20px; border-radius: 50px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .btn-add { background: #39FF14; color: #000; }
+        .btn-undo { background: #fff; color: #ff5252; }
+        .btn-done { background: #2196F3; color: white; display: none; }
+        
+        .gps-btn { position: absolute; bottom: 130px; right: 20px; background: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; cursor: pointer; }
+        
+        #form-box { position: absolute; bottom: 0; left: 0; width: 100%; background: white; padding: 25px; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 2000; transition: transform 0.3s ease; transform: translateY(100%); }
+        #form-box.active { transform: translateY(0); }
+        input { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; }
+        .submit-btn { width: 100%; background: #4CAF50; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 10px; }
+        .cancel-btn { background: transparent; color: #777; width: 100%; padding: 10px; border: none; margin-top: 5px; }
+        
+        .info-top { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 8px 20px; border-radius: 20px; z-index: 1000; font-size: 14px; white-space: nowrap; display: none; }
+        .leaflet-control-geocoder { border: none !important; border-radius: 8px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important; margin-top: 10px !important; margin-left: 10px !important; }
+    </style>
+</head>
+<body>
+    <div id="map"></div>
+    
+    <a id="back-btn" href="dashboard.html" style="display:none;"><i class="fas fa-arrow-left"></i> ফিরে যান</a>
+
+    <div class="crosshair" id="crosshair-icon"><i class="fas fa-plus-circle"></i></div>
+    <div class="gps-btn" onclick="locateUser()"><i class="fas fa-crosshairs"></i></div>
+    <div class="info-top" id="msg-box">টার্গেটটি জমির কোণায় নিন</div>
+
+    <div id="start-btn-container">
+        <button class="btn-start" onclick="startMappingMode()">
+            <i class="fas fa-draw-polygon"></i> জমি মাপা শুরু করুন
+        </button>
+    </div>
+
+    <div class="controls" id="control-bar">
+        <button class="btn-action btn-undo" onclick="undoPoint()"><i class="fas fa-undo"></i></button>
+        <button class="btn-action btn-add" onclick="addPoint()"><i class="fas fa-map-pin"></i> পয়েন্ট</button>
+        <button class="btn-action btn-done" id="done-btn" onclick="finishDrawing()"><i class="fas fa-check"></i> শেষ</button>
+    </div>
+
+    <div id="form-box">
+        <h2 style="margin:0 0 10px 0; color:#4CAF50;">জমির বিবরণ</h2>
+        <p style="font-size: 18px;">পরিমাপ: <strong id="area-val" style="color:#2196F3">0</strong> শতাংশ</p>
+        <input type="text" id="username" placeholder="কৃষকের নাম">
+        <input type="tel" id="userphone" placeholder="মোবাইল নাম্বার">
+        <button class="submit-btn" onclick="saveData()">রেজিস্ট্রেশন কনফার্ম</button>
+        <button class="cancel-btn" onclick="resetMap()">বাতিল করুন</button>
+    </div>
+
+    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+
+    <script>
+        var map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
+        L.tileLayer('http://{s}.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(map);
+
+        L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
+        .on('markgeocode', function(e) {
+            var bbox = e.geocode.bbox;
+            var poly = L.polygon([bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()]);
+            map.fitBounds(poly.getBounds());
+        }).addTo(map);
+
+        var points = [];
+        var markers = [];
+        var polygonLayer = null;
+        var finalArea = 0;
+
+        // 🔥 ড্যাশবোর্ড থেকে আসা ডাটা চেক করা 🔥
+        window.onload = function() {
+            var storedData = localStorage.getItem('viewLand');
+            if(storedData) {
+                try {
+                    var landPoints = JSON.parse(storedData);
+                    showSavedLand(landPoints);
+                    localStorage.removeItem('viewLand'); // একবার দেখানোর পর ক্লিয়ার
+                } catch(e) { console.log("Error parsing land data"); }
+            }
+        };
+
+        function showSavedLand(savedPoints) {
+            document.getElementById('start-btn-container').style.display = 'none'; // শুরু বাটন লুকান
+            document.getElementById('back-btn').style.display = 'flex'; // ব্যাক বাটন দেখান
+            
+            // ম্যাপে জমি আঁকা
+            var polygon = L.polygon(savedPoints, {
+                color: '#39FF14', weight: 4, fillColor: '#39FF14', fillOpacity: 0.5
+            }).addTo(map);
+            
+            map.fitBounds(polygon.getBounds(), {padding: [50, 50]});
+        }
+
+        function startMappingMode() {
+            document.getElementById('start-btn-container').style.display = 'none';
+            document.getElementById('control-bar').style.display = 'flex';
+            document.getElementById('crosshair-icon').style.display = 'block';
+            document.getElementById('msg-box').style.display = 'block';
+            document.getElementById('msg-box').innerText = "টার্গেটটি জমির কোণায় নিন";
+        }
+
+        function addPoint() {
+            var center = map.getCenter();
+            points.push([center.lat, center.lng]);
+            var marker = L.circleMarker([center.lat, center.lng], { color: 'white', fillColor: '#39FF14', fillOpacity: 1, radius: 5 }).addTo(map);
+            markers.push(marker);
+            drawPolygon();
+            if(points.length >= 3) { document.getElementById('done-btn').style.display = 'flex'; document.getElementById('msg-box').innerText = "পরের কোণায় যান অথবা 'শেষ' চাপুন"; }
+        }
+
+        function drawPolygon() {
+            if (polygonLayer) map.removeLayer(polygonLayer);
+            if (points.length > 0) { polygonLayer = L.polygon(points, { color: '#39FF14', weight: 3, fillColor: '#39FF14', fillOpacity: 0.3 }).addTo(map); }
+        }
+
+        function undoPoint() {
+            if(points.length > 0) { points.pop(); map.removeLayer(markers.pop()); drawPolygon(); if(points.length < 3) document.getElementById('done-btn').style.display = 'none'; }
+        }
+
+        function finishDrawing() {
+            var turfPoints = [...points, points[0]]; 
+            var geoJsonPoints = turfPoints.map(p => [p[1], p[0]]); 
+            var polygon = turf.polygon([geoJsonPoints]);
+            var areaSqMeters = turf.area(polygon);
+            finalArea = (areaSqMeters / 40.4686).toFixed(2); 
+            map.fitBounds(polygonLayer.getBounds(), {padding: [50, 50]});
+            document.getElementById('area-val').innerText = finalArea;
+            document.getElementById('form-box').classList.add('active');
+            document.getElementById('control-bar').style.display = 'none';
+            document.getElementById('crosshair-icon').style.display = 'none';
+            document.getElementById('msg-box').style.display = 'none';
+        }
+
+        function resetMap() {
+            points = []; markers.forEach(m => map.removeLayer(m)); markers = [];
+            if(polygonLayer) map.removeLayer(polygonLayer);
+            document.getElementById('form-box').classList.remove('active');
+            document.getElementById('start-btn-container').style.display = 'flex';
+            document.getElementById('control-bar').style.display = 'none';
+            document.getElementById('crosshair-icon').style.display = 'none';
+            document.getElementById('done-btn').style.display = 'none';
+            document.getElementById('msg-box').style.display = 'none';
+        }
+
+        function locateUser() {
+            var btn = document.querySelector('.gps-btn'); btn.style.background = '#ddd';
+            map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true, timeout: 8000 });
+        }
+        map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
+        map.on('locationerror', function(e) { document.querySelector('.gps-btn').style.background = 'white'; alert("⚠️ জিপিএস সমস্যা! দয়া করে সার্চ বাটন ব্যবহার করুন।"); });
+
+        function saveData() {
+            var name = document.getElementById('username').value;
+            var phone = document.getElementById('userphone').value;
+            var btn = document.querySelector('.submit-btn');
+            if(!name || !phone) { alert("নাম ও নাম্বার দিন!"); return; }
+            btn.innerText = "পাঠানো হচ্ছে...";
+            
+            // 🔥 Points সহ ডাটা পাঠানো হচ্ছে 🔥
+            var data = { name: name, phone: phone, landSize: finalArea, points: points };
+            var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
+
+            fetch(scriptURL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+            .then(() => { alert("✅ সফলভাবে রেজিস্ট্রেশন হয়েছে!"); resetMap(); btn.innerText = "রেজিস্ট্রেশন কনফার্ম"; })
+            .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "রেজিস্ট্রেশন কনফার্ম"; });
+        }
+    </script>
+</body>
+</html>
