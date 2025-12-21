@@ -1,4 +1,6 @@
-<!DOCTYPE html>
+tive');
+            document.getElementById('start-btn-container').style.display = 'flex';
+     <!DOCTYPE html>
 <html lang="en">
 <head>
     <meta charset="UTF-8">
@@ -14,16 +16,23 @@
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         #map { height: 100vh; width: 100%; z-index: 1; }
 
-        /* ব্যাক বাটন (View Mode এর জন্য) */
-        #back-btn { 
+        /* ড্যাশবোর্ড বাটন (উপরে বামে) */
+        #dashboard-btn { 
             position: absolute; top: 20px; left: 20px; 
             background: white; padding: 10px 15px; border-radius: 8px; 
             z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
-            font-weight: bold; cursor: pointer; display: none; 
-            text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px;
+            font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px;
         }
 
-        /* সাধারণ বাটন ও কন্ট্রোল */
+        /* ব্যাক বাটন (শুধুমাত্র ভিউ মোডে দেখাবে) */
+        #back-btn { 
+            position: absolute; top: 20px; left: 20px; 
+            background: white; padding: 10px 15px; border-radius: 8px; 
+            z-index: 2001; box-shadow: 0 2px 10px rgba(0,0,0,0.2); 
+            font-weight: bold; cursor: pointer; display: none; 
+            text-decoration: none; color: #333; align-items: center; gap: 5px;
+        }
+
         .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
         .crosshair i { font-size: 40px; color: #fff; text-shadow: 0 0 5px #000; }
         
@@ -51,7 +60,9 @@
 <body>
     <div id="map"></div>
     
-    <a id="back-btn" href="dashboard.html" style="display:none;"><i class="fas fa-arrow-left"></i> ফিরে যান</a>
+    <a id="dashboard-btn" href="Dashboard.html"><i class="fas fa-list"></i> লিস্ট দেখুন</a>
+
+    <a id="back-btn" href="Dashboard.html"><i class="fas fa-arrow-left"></i> ফিরে যান</a>
 
     <div class="crosshair" id="crosshair-icon"><i class="fas fa-plus-circle"></i></div>
     <div class="gps-btn" onclick="locateUser()"><i class="fas fa-crosshairs"></i></div>
@@ -83,7 +94,12 @@
 
     <script>
         var map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
-        L.tileLayer('http://{s}.google.com/vt/lyrs=y&hl=en&x={x}&y={y}&z={z}', { maxZoom: 20, subdomains: ['mt0', 'mt1', 'mt2', 'mt3'] }).addTo(map);
+        
+        // 🔥 ফিক্সড: HTTPS Google Hybrid Map (গিটহাবে কাজ করবে) 🔥
+        L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+            maxZoom: 20,
+            attribution: '© Google'
+        }).addTo(map);
 
         L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
         .on('markgeocode', function(e) {
@@ -97,23 +113,22 @@
         var polygonLayer = null;
         var finalArea = 0;
 
-        // 🔥 ড্যাশবোর্ড থেকে আসা ডাটা চেক করা 🔥
         window.onload = function() {
             var storedData = localStorage.getItem('viewLand');
             if(storedData) {
                 try {
                     var landPoints = JSON.parse(storedData);
                     showSavedLand(landPoints);
-                    localStorage.removeItem('viewLand'); // একবার দেখানোর পর ক্লিয়ার
-                } catch(e) { console.log("Error parsing land data"); }
+                    localStorage.removeItem('viewLand');
+                } catch(e) { console.log("Error parsing"); }
             }
         };
 
         function showSavedLand(savedPoints) {
-            document.getElementById('start-btn-container').style.display = 'none'; // শুরু বাটন লুকান
+            document.getElementById('start-btn-container').style.display = 'none';
+            document.getElementById('dashboard-btn').style.display = 'none'; // মেইন বাটন লুকান
             document.getElementById('back-btn').style.display = 'flex'; // ব্যাক বাটন দেখান
             
-            // ম্যাপে জমি আঁকা
             var polygon = L.polygon(savedPoints, {
                 color: '#39FF14', weight: 4, fillColor: '#39FF14', fillOpacity: 0.5
             }).addTo(map);
@@ -167,6 +182,36 @@
             document.getElementById('form-box').classList.remove('active');
             document.getElementById('start-btn-container').style.display = 'flex';
             document.getElementById('control-bar').style.display = 'none';
+            document.getElementById('crosshair-icon').style.display = 'none';
+            document.getElementById('done-btn').style.display = 'none';
+            document.getElementById('msg-box').style.display = 'none';
+        }
+
+        function locateUser() {
+            var btn = document.querySelector('.gps-btn'); btn.style.background = '#ddd';
+            map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true, timeout: 8000 });
+        }
+        map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
+        map.on('locationerror', function(e) { document.querySelector('.gps-btn').style.background = 'white'; alert("⚠️ জিপিএস সমস্যা! দয়া করে সার্চ বাটন ব্যবহার করুন।"); });
+
+        function saveData() {
+            var name = document.getElementById('username').value;
+            var phone = document.getElementById('userphone').value;
+            var btn = document.querySelector('.submit-btn');
+            if(!name || !phone) { alert("নাম ও নাম্বার দিন!"); return; }
+            btn.innerText = "পাঠানো হচ্ছে...";
+            
+            var data = { name: name, phone: phone, landSize: finalArea, points: points };
+            var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
+
+            fetch(scriptURL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
+            .then(() => { alert("✅ সফলভাবে রেজিস্ট্রেশন হয়েছে!"); resetMap(); btn.innerText = "রেজিস্ট্রেশন কনফার্ম"; })
+            .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "রেজিস্ট্রেশন কনফার্ম"; });
+        }
+    </script>
+</body>
+</html>
+       document.getElementById('control-bar').style.display = 'none';
             document.getElementById('crosshair-icon').style.display = 'none';
             document.getElementById('done-btn').style.display = 'none';
             document.getElementById('msg-box').style.display = 'none';
