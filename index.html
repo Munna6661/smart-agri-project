@@ -17,7 +17,7 @@
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
         #map { height: 100vh; width: 100%; z-index: 1; background: #e0e0e0; }
 
-        /* ডিজাইন */
+        /* বাটন ডিজাইন */
         #dashboard-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px; }
         #logout-btn { position: absolute; top: 20px; right: 60px; background: #ff5252; color: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; display: none; align-items: center; gap: 5px; font-size: 14px; }
         #back-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2001; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; display: none; text-decoration: none; color: #333; align-items: center; gap: 5px; }
@@ -127,7 +127,6 @@
     </div>
 
     <script>
-        // ১. ভেরিয়েবলগুলো সবার জন্য উন্মুক্ত (Global)
         var map;
         var points = []; 
         var markers = []; 
@@ -136,9 +135,7 @@
         var aiSuggestion = "";
         var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
 
-        // ২. ফাংশনগুলো Global Scope এ রাখা হলো (onload এর বাইরে)
-        // যাতে ম্যাপ ক্র্যাশ করলেও বাটনগুলো কাজ করে
-        
+        // --- ফাংশনগুলো Global Scope ---
         function updateUI() {
             var userName = localStorage.getItem('user_name');
             if(userName) {
@@ -233,7 +230,6 @@
             }
         }
 
-        // --- AUTH & SAVE Logic ---
         function checkAuthAndSave() {
             var phone = localStorage.getItem('user_phone');
             if(phone) { saveData(phone, localStorage.getItem('user_name')); } 
@@ -267,32 +263,38 @@
             .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "অর্ডার কনফার্ম করুন"; });
         }
 
-        // ৩. ম্যাপ ইনিশিয়ালাইজেশন (সবার শেষে)
+        // ৩. ম্যাপ ইনিশিয়ালাইজেশন এবং অটো-ডিটেক্ট লজিক
         window.onload = function() {
             updateUI();
 
             try {
                 map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
-                
-                // 🔥 Google Satellite Map (Global Standard) 🔥
-                L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                    maxZoom: 20,
-                    attribution: '© Google',
-                    referrerPolicy: 'no-referrer'
-                }).addTo(map);
 
+                // 🔥 অটো ডিটেকশন লজিক 🔥
+                var isLocalOrApp = window.location.protocol === 'file:' || navigator.userAgent.includes('Messenger');
+                
+                var googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20, attribution: '© Google', referrerPolicy: 'no-referrer'
+                });
+
+                var esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
+                    maxZoom: 18, attribution: 'Esri'
+                });
+
+                // যদি অ্যাপ বা লোকাল ফাইল হয় -> Esri (নিরাপদ)
+                // যদি ক্রোম বা ওয়েবসাইট হয় -> Google (বেস্ট কোয়ালিটি)
+                if (isLocalOrApp) {
+                    esriSat.addTo(map); 
+                } else {
+                    googleSat.addTo(map);
+                }
+
+                // লেয়ার কন্ট্রোল (User can switch)
+                var baseMaps = { "Google Satellite": googleSat, "Professional Map (Esri)": esriSat };
+                L.control.layers(baseMaps).addTo(map);
+
+                // জিওকোডার এবং অন্যান্য
                 L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
                 .on('markgeocode', function(e) {
                     var bbox = e.geocode.bbox;
-                    var poly = L.polygon([bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()]);
-                    map.fitBounds(poly.getBounds());
-                }).addTo(map);
-
-                map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
-
-                // আগের সেভ করা ডাটা লোড
-                var storedData = localStorage.getItem('viewLand');
-                if(storedData) {
-                    var landPoints = JSON.parse(storedData);
-                    showSavedLand(landPoints);
-                    localStorage.remov
+                    var poly = L.polygon(
