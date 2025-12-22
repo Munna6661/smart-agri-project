@@ -3,176 +3,87 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Dashboard</title>
+    <title>Dashboard - Smart Agri Pro</title>
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    
     <style>
-        body { background-color: #f0f2f5; padding: 20px; font-family: 'Segoe UI', sans-serif; }
-        .container { max-width: 400px; margin: 0 auto; }
-        .box { background: white; padding: 25px; border-radius: 15px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); text-align: center; }
-        h2, h3 { color: #2E7D32; margin-bottom: 10px; }
-        input { width: 100%; padding: 12px; margin: 15px 0; border: 2px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; text-align: center; }
-        button { width: 100%; background: #4CAF50; color: white; padding: 12px; border: none; border-radius: 8px; font-weight: bold; font-size: 16px; cursor: pointer; transition: 0.3s; }
-        .hidden { display: none; }
-        
-        /* রেকর্ড কার্ড ডিজাইন */
-        .record-card {
-            background: #fff; padding: 15px; margin-top: 15px; 
-            border-radius: 10px; border-left: 6px solid #4CAF50;
-            box-shadow: 0 2px 5px rgba(0,0,0,0.05); text-align: left;
-            position: relative; /* ডিলিট বাটনের জন্য */
-            cursor: pointer;
-        }
-        .record-card:active { background: #e8f5e9; }
-        .status { display: inline-block; background: #e8f5e9; color: #2E7D32; padding: 3px 8px; border-radius: 12px; font-size: 12px; font-weight: bold; margin-top: 5px; }
-
-        /* ডিলিট বাটন ডিজাইন */
-        .delete-btn {
-            position: absolute; top: 15px; right: 15px;
-            background: #ff5252; color: white;
-            width: 35px; height: 35px;
-            border-radius: 50%; border: none;
-            display: flex; align-items: center; justify-content: center;
-            cursor: pointer; z-index: 10;
-        }
-        .delete-btn:active { transform: scale(0.9); background: #d32f2f; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; }
+        body { background: #f4f7f6; color: #333; padding-bottom: 30px; }
+        .header { background: #2E7D32; color: white; padding: 30px 20px; border-radius: 0 0 25px 25px; box-shadow: 0 4px 15px rgba(0,0,0,0.1); }
+        .user-info h2 { font-size: 22px; margin-bottom: 5px; }
+        .btn-ai { background: linear-gradient(135deg, #1B5E20, #43A047); color: white; padding: 18px; border-radius: 15px; text-align: center; text-decoration: none; display: flex; align-items: center; justify-content: center; gap: 10px; margin: 20px; font-weight: bold; box-shadow: 0 4px 12px rgba(46,125,50,0.3); }
+        .section-title { padding: 0 20px; font-size: 18px; font-weight: bold; color: #2E7D32; display: flex; justify-content: space-between; align-items: center; margin-top: 10px; }
+        .add-land-btn { background: #fff; color: #2E7D32; padding: 8px 15px; border-radius: 10px; text-decoration: none; font-size: 14px; border: 1px solid #2E7D32; font-weight: bold; }
+        .land-container { padding: 20px; }
+        .land-card { background: white; border-radius: 15px; padding: 15px; margin-bottom: 20px; box-shadow: 0 2px 10px rgba(0,0,0,0.05); border-left: 6px solid #4CAF50; }
+        .land-name { font-size: 18px; font-weight: bold; margin-bottom: 5px; }
+        .land-meta { font-size: 13px; color: #777; margin-bottom: 15px; }
+        .service-group { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; margin-top: 10px; border-top: 1px solid #eee; padding-top: 15px; }
+        .s-btn { border: none; padding: 10px 5px; border-radius: 8px; font-size: 11px; font-weight: bold; cursor: pointer; display: flex; flex-direction: column; align-items: center; gap: 5px; }
+        .btn-drone { background: #E8F5E9; color: #2E7D32; }
+        .btn-harvest { background: #FFF3E0; color: #E65100; }
+        .btn-pump { background: #E3F2FD; color: #1565C0; }
+        .empty-msg { text-align: center; padding: 50px 20px; color: #999; }
+        .logout-btn { background: #ffebee; color: #c62828; border: none; padding: 10px; border-radius: 50%; width: 40px; height: 40px; float: right; cursor: pointer; }
     </style>
 </head>
 <body>
-    <div class="container">
-        <div id="login-section" class="box">
-            <h2>কৃষক ড্যাশবোর্ড</h2>
-            <p style="color: #666;">মোবাইল নাম্বার দিন:</p>
-            <input type="tel" id="login-phone" placeholder="017xxxxxxxx">
-            <button onclick="loginUser()">তথ্য খুঁজুন</button>
-        </div>
-
-        <div id="dashboard-section" class="hidden">
-            <div class="box">
-                <h3>স্বাগতম, <span id="user-name">User</span>!</h3>
-                <p>মোট জমি: <span id="total-land" style="font-weight:bold; color:#4CAF50">0</span> শতাংশ</p>
-                <button onclick="location.reload()" style="background: #ff5252; margin-top:10px;">লগআউট</button>
-            </div>
-            <h4 style="margin-top:20px; color:#555;">আপনার জমিসমূহ:</h4>
-            <div id="records-list"></div>
+    <div class="header">
+        <button class="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i></button>
+        <div class="user-info">
+            <h2 id="display-name">লোড হচ্ছে...</h2>
+            <p id="display-phone"></p>
         </div>
     </div>
 
+    <a href="scanner.html" class="btn-ai"><i class="fas fa-robot"></i> AI ফসলের রোগ নির্ণয় করুন</a>
+
+    <div class="section-title">
+        আপনার জমিসমূহ
+        <a href="map.html?mode=add" class="add-land-btn"><i class="fas fa-plus"></i> যোগ করুন</a>
+    </div>
+
+    <div class="land-container" id="land-list"></div>
+
     <script>
-        var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
-        
-        var globalRecords = [];
-        var currentUserPhone = ""; // ডিলিটের পর রিফ্রেশ করার জন্য
-
-        function loginUser() {
-            var phoneInput = document.getElementById('login-phone').value.trim();
-            var btn = document.querySelector('button');
-
-            if (!phoneInput) { alert("নাম্বার দিন!"); return; }
-
-            currentUserPhone = phoneInput; // ফোন নম্বর সেভ রাখা
-            btn.innerText = "খোঁজা হচ্ছে..."; btn.disabled = true;
-            
-            fetchDashboardData();
+        window.onload = function() {
+            let name = localStorage.getItem('user_name') || "সম্মানিত কৃষক";
+            let phone = localStorage.getItem('user_phone');
+            if (!phone) { window.location.href = 'index.html'; return; }
+            document.getElementById('display-name').innerText = "হ্যালো, " + name + "!";
+            document.getElementById('display-phone').innerText = "মোবাইল: " + phone;
+            renderLands();
         }
 
-        function fetchDashboardData() {
-            fetch(scriptURL)
-            .then(response => response.json())
-            .then(data => {
-                var userRecords = data.filter(item => {
-                    var p = item.phone.toString();
-                    return p == currentUserPhone || "0" + p == currentUserPhone || p == "0" + currentUserPhone; 
-                });
-
-                if (userRecords.length > 0) {
-                    showDashboard(userRecords);
-                } else {
-                    alert("কোনো জমি পাওয়া যায়নি!");
-                    document.querySelector('button').innerText = "তথ্য খুঁজুন"; 
-                    document.querySelector('button').disabled = false;
-                    // যদি সব ডিলিট করে ফেলে, তাহলে লগইন পেজে পাঠাবো
-                    document.getElementById('dashboard-section').classList.add('hidden');
-                    document.getElementById('login-section').classList.remove('hidden');
-                }
-            })
-            .catch(error => { alert("সার্ভার সমস্যা!"); });
-        }
-
-        function showDashboard(records) {
-            document.getElementById('login-section').classList.add('hidden');
-            document.getElementById('dashboard-section').classList.remove('hidden');
-            document.getElementById('user-name').innerText = records[0].name;
-            
-            globalRecords = records;
-            var listHTML = "";
-            var totalLand = 0;
-
-            records.forEach(function(record, index) {
-                var date = new Date(record.date).toLocaleDateString('bn-BD');
-                totalLand += parseFloat(record.landSize);
-
-                listHTML += `
-                    <div class="record-card" onclick="openMap(${index})">
-                        
-                        <button class="delete-btn" onclick="deleteRecord(event, ${index})">
-                            <i class="fas fa-trash"></i>
-                        </button>
-
-                        <div style="font-size: 18px; font-weight: bold;">🌱 ${record.landSize} শতাংশ জমি</div>
-                        <div style="color: gray; font-size: 14px; margin: 5px 0;">📅 তারিখ: ${date}</div>
-                        <div class="status">● ম্যাপে দেখুন 🗺️</div>
-                    </div>
-                `;
-            });
-
-            document.getElementById('records-list').innerHTML = listHTML;
-            document.getElementById('total-land').innerText = totalLand.toFixed(2);
-        }
-
-        function openMap(index) {
-            var selectedRecord = globalRecords[index];
-            if(selectedRecord.points) {
-                localStorage.setItem('viewLand', selectedRecord.points);
-                window.location.href = 'index.html';
-            } else {
-                alert("দুঃখিত, এটি একটি পুরাতন রেকর্ড। ম্যাপ নেই।");
+        function renderLands() {
+            let lands = JSON.parse(localStorage.getItem('land_history')) || [];
+            let container = document.getElementById('land-list');
+            if (lands.length === 0) {
+                container.innerHTML = `<div class="empty-msg"><i class="fas fa-map-marked-alt fa-3x"></i><p><br>কোনো জমি পাওয়া যায়নি।</p></div>`;
+                return;
             }
+            container.innerHTML = lands.map((land, index) => `
+                <div class="land-card">
+                    <div onclick="viewLandOnMap(${index})" style="cursor:pointer">
+                        <div class="land-name">${land.name || 'জমি ' + (index+1)}</div>
+                        <div class="land-meta">
+                            <span><i class="fas fa-expand"></i> ${land.area} শতাংশ</span> | 
+                            <span><i class="fas fa-eye"></i> ম্যাপে দেখুন</span>
+                        </div>
+                    </div>
+                    <div class="service-group">
+                        <button class="s-btn btn-drone" onclick="orderService('ড্রোন স্প্রে', '${land.name}')"><i class="fas fa-plane"></i>ড্রোন</button>
+                        <button class="s-btn btn-harvest" onclick="orderService('হারভেস্ট', '${land.name}')"><i class="fas fa-tractor"></i>কাটাই</button>
+                        <button class="s-btn btn-pump" onclick="orderService('স্মার্ট পাম্প', '${land.name}')"><i class="fas fa-water"></i>পাম্প</button>
+                    </div>
+                    <button onclick="deleteLand(${index})" style="background:none; border:none; color:#ffcdd2; font-size:11px; margin-top:10px; cursor:pointer;">মুছে ফেলুন</button>
+                </div>
+            `).join('');
         }
 
-        // 🔥 ডিলিট ফাংশন 🔥
-        function deleteRecord(event, index) {
-            event.stopPropagation(); // ম্যাপ ওপেন হওয়া আটকাবে
-            
-            if(!confirm("আপনি কি নিশ্চিত এই জমিটি ডিলিট করতে চান?")) return;
-
-            var record = globalRecords[index];
-            var btn = event.target.closest('button'); // যে বাটনে চাপ দিয়েছে
-            btn.innerHTML = '<i class="fas fa-spinner fa-spin"></i>'; // লোডিং আইকন
-
-            // ডিলিট রিকোয়েস্ট পাঠানো
-            var data = { 
-                action: "delete", 
-                phone: record.phone, 
-                landSize: record.landSize 
-            };
-
-            fetch(scriptURL, {
-                method: 'POST',
-                mode: 'no-cors',
-                headers: { 'Content-Type': 'application/json' },
-                body: JSON.stringify(data)
-            })
-            .then(() => {
-                alert("✅ জমি ডিলিট করা হয়েছে!");
-                // পেজ রিফ্রেশ না করে আবার ডাটা লোড করা
-                fetchDashboardData();
-            })
-            .catch(err => {
-                alert("❌ সমস্যা হয়েছে!");
-                btn.innerHTML = '<i class="fas fa-trash"></i>';
-            });
-        }
+        function viewLandOnMap(index) { window.location.href = `map.html?mode=view&id=${index}`; }
+        function orderService(s, l) { alert("✅ অর্ডার কনফার্ম!\nসার্ভিস: " + s + "\nজমি: " + l); }
+        function deleteLand(i) { if(confirm("ডিলিট করবেন?")) { let l = JSON.parse(localStorage.getItem('land_history')); l.splice(i, 1); localStorage.setItem('land_history', JSON.stringify(l)); renderLands(); } }
+        function logout() { localStorage.clear(); window.location.href = 'index.html'; }
     </script>
 </body>
 </html>

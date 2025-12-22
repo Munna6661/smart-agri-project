@@ -1,0 +1,239 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>Smart Map - Agri Pro</title>
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
+    
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
+    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
+    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
+
+    <style>
+        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
+        #map { height: 100vh; width: 100%; z-index: 1; }
+
+        /* উপরের বাটন */
+        .top-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px; }
+
+        /* কন্ট্রোল বাটন (Add/Undo) */
+        .controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 1000; }
+        .btn-action { background: white; border: none; padding: 15px 20px; border-radius: 50px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 10px; cursor: pointer; }
+        .btn-add { background: #4CAF50; color: white; } 
+        .btn-undo { background: white; color: #f44336; } 
+        .btn-done { background: #2196F3; color: white; display: none; }
+
+        /* ক্রসহেয়ার (টার্গেট) */
+        .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 900; pointer-events: none; color: white; font-size: 30px; text-shadow: 0 0 5px black; }
+
+        /* রেজাল্ট বক্স (নিচে আসবে) */
+        #result-box {
+            position: absolute; bottom: 0; left: 0; width: 100%;
+            background: white; padding: 25px; border-radius: 20px 20px 0 0;
+            box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 2000;
+            transform: translateY(100%); transition: 0.3s;
+        }
+        #result-box.active { transform: translateY(0); }
+
+        .result-title { font-size: 18px; font-weight: bold; color: #2E7D32; margin-bottom: 5px; }
+        .result-val { font-size: 24px; color: #333; font-weight: bold; margin-bottom: 15px; }
+        
+        .btn-save { width: 100%; padding: 15px; background: #2E7D32; color: white; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; cursor: pointer; }
+        .btn-close { width: 100%; padding: 12px; background: #f5f5f5; color: #555; border: none; border-radius: 10px; font-weight: bold; margin-top: 10px; cursor: pointer; }
+
+        /* GPS বাটন */
+        .gps-btn { position: absolute; bottom: 120px; right: 20px; background: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.2); z-index: 1000; cursor: pointer; }
+    </style>
+</head>
+<body>
+
+    <div id="map"></div>
+    <div class="crosshair" id="crosshair-target"><i class="fas fa-plus-circle"></i></div>
+    
+    <a href="Dashboard.html" class="top-btn" id="back-to-dash"><i class="fas fa-arrow-left"></i> ফিরে যান</a>
+    <div class="gps-btn" onclick="locateUser()"><i class="fas fa-crosshairs"></i></div>
+
+    <div class="controls" id="control-bar">
+        <button class="btn-action btn-undo" onclick="undoPoint()"><i class="fas fa-undo"></i></button>
+        <button class="btn-action btn-add" onclick="addPoint()">পয়েন্ট +</button>
+        <button class="btn-action btn-done" id="done-btn" onclick="finishDrawing()">শেষ</button>
+    </div>
+
+    <div id="result-box">
+        <h3 class="result-title" id="res-title">ফলাফল</h3>
+        <div class="result-val" id="res-value">...</div>
+        <p id="res-desc" style="color:#666; font-size:14px; margin-bottom:15px;">...</p>
+
+        <button class="btn-save" id="save-btn" onclick="handleSave()">প্রোফাইলে সেভ করুন</button>
+        <button class="btn-close" onclick="resetMap()">আবার মাপুন</button>
+    </div>
+
+    <script>
+        var map, points = [], markers = [], polygonLayer;
+        var mode = "measure"; // ডিফল্ট মোড
+
+        // ১. URL থেকে মোড এবং জমির ID চেক করা
+        window.onload = function() {
+            var params = new URLSearchParams(window.location.search);
+            mode = params.get('mode') || 'measure'; // measure, scan, add, view
+            var landId = params.get('id'); // ড্যাশবোর্ড থেকে পাঠানো জমির ইনডেক্স
+            
+            initMap();
+
+            // যদি মোড 'view' হয় এবং ID থাকে, তবে সংরক্ষিত জমি লোড হবে
+            if (mode === 'view' && landId !== null) {
+                showSavedLand(landId);
+            }
+        };
+
+        // ২. ম্যাপ সেটআপ
+        function initMap() {
+            map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 15);
+            
+            L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                maxZoom: 20, attribution: 'Google'
+            }).addTo(map);
+
+            L.Control.geocoder().addTo(map);
+        }
+
+        // --- নতুন ফাংশন: সংরক্ষিত জমি প্রদর্শন করা ---
+        function showSavedLand(id) {
+            var history = JSON.parse(localStorage.getItem('land_history')) || [];
+            var land = history[id];
+
+            if (land && land.points) {
+                // ড্রয়িং বাটন এবং টার্গেট হাইড করা
+                document.getElementById('control-bar').style.display = 'none';
+                document.getElementById('crosshair-target').style.display = 'none';
+
+                // ম্যাপে পলিগন আঁকা
+                points = land.points;
+                polygonLayer = L.polygon(points, { color: '#39FF14', weight: 4 }).addTo(map);
+                
+                // ম্যাপকে ওই জমির জায়গায় জুম করা
+                map.fitBounds(polygonLayer.getBounds(), { padding: [50, 50] });
+
+                // রেজাল্ট প্যানেলে তথ্য দেখানো
+                document.getElementById('result-box').classList.add('active');
+                document.getElementById('res-title').innerText = land.name;
+                document.getElementById('res-value').innerText = land.area + " শতাংশ";
+                document.getElementById('res-desc').innerText = "মাপা হয়েছে: " + land.date;
+                
+                // সেভ বাটন হাইড করা (যেহেতু অলরেডি সেভড)
+                document.getElementById('save-btn').style.display = 'none';
+            }
+        }
+
+        // ৩. ড্রয়িং লজিক
+        function addPoint() {
+            var center = map.getCenter();
+            points.push([center.lat, center.lng]);
+            
+            var marker = L.circleMarker(center, { color: 'white', fillColor: '#39FF14', fillOpacity: 1, radius: 5 }).addTo(map);
+            markers.push(marker);
+            
+            if(points.length > 0) {
+                if(polygonLayer) map.removeLayer(polygonLayer);
+                polygonLayer = L.polygon(points, { color: '#39FF14' }).addTo(map);
+            }
+
+            if(points.length >= 3) document.getElementById('done-btn').style.display = 'flex';
+        }
+
+        function undoPoint() {
+            if(points.length > 0) {
+                points.pop();
+                map.removeLayer(markers.pop());
+                if(polygonLayer) map.removeLayer(polygonLayer);
+                if(points.length > 0) polygonLayer = L.polygon(points, { color: '#39FF14' }).addTo(map);
+                if(points.length < 3) document.getElementById('done-btn').style.display = 'none';
+            }
+        }
+
+        // ৪. ফিনিশ বাটন লজিক (মোড অনুযায়ী রেজাল্ট)
+        function finishDrawing() {
+            document.getElementById('control-bar').style.display = 'none';
+            document.getElementById('crosshair-target').style.display = 'none';
+
+            // এরিয়া ক্যালকুলেশন
+            var tPoints = [...points, points[0]];
+            var polygon = turf.polygon([tPoints.map(p => [p[1], p[0]])]);
+            var area = (turf.area(polygon) / 40.4686).toFixed(2); // শতাংশে কনভার্ট
+
+            var titleEl = document.getElementById('res-title');
+            var valEl = document.getElementById('res-value');
+            var descEl = document.getElementById('res-desc');
+            var saveBtn = document.getElementById('save-btn');
+
+            document.getElementById('result-box').classList.add('active');
+
+            if (mode === 'measure') {
+                titleEl.innerText = "জমির পরিমাপ";
+                valEl.innerText = area + " শতাংশ";
+                descEl.innerText = "এটি আপনার সিলেক্ট করা জমির আনুমানিক আয়তন।";
+                saveBtn.innerText = "লগইন করে সেভ করুন"; 
+            } 
+            else if (mode === 'scan') {
+                titleEl.innerText = "স্যাটেলাইট স্ক্যান রিপোর্ট";
+                valEl.innerText = "উর্বর দোআঁশ মাটি";
+                descEl.innerText = "ফসল উপযোগী: ধান, আলু, গম। (Demo Data)";
+                saveBtn.innerText = "লগইন করে বিস্তারিত দেখুন";
+            }
+            else if (mode === 'add') {
+                titleEl.innerText = "নতুন জমি কনফার্ম করুন";
+                valEl.innerText = area + " শতাংশ";
+                descEl.innerText = "এই জমিটি আপনার ড্যাশবোর্ডে যুক্ত হবে।";
+                saveBtn.innerText = "✅ জমি যুক্ত করুন";
+            }
+        }
+
+        // ৫. সেভ বাটন লজিক
+        function handleSave() {
+            var phone = localStorage.getItem('user_phone');
+
+            if (mode === 'add') {
+                saveToDashboard();
+            } else {
+                if (phone) {
+                    if(confirm("আপনি কি এই জমিটি আপনার ড্যাশবোর্ডে সেভ করতে চান?")) {
+                        saveToDashboard();
+                    }
+                } else {
+                    alert("রিপোর্ট সেভ করতে হলে আপনাকে লগইন বা রেজিস্ট্রেশন করতে হবে।");
+                    window.location.href = 'index.html#auth'; 
+                }
+            }
+        }
+
+        function saveToDashboard() {
+            var tPoints = [...points, points[0]];
+            var polygon = turf.polygon([tPoints.map(p => [p[1], p[0]])]);
+            var area = (turf.area(polygon) / 40.4686).toFixed(2);
+
+            var history = JSON.parse(localStorage.getItem('land_history')) || [];
+            history.push({
+                name: "জমি " + (history.length + 1),
+                area: area,
+                date: new Date().toLocaleDateString(),
+                points: points
+            });
+            localStorage.setItem('land_history', JSON.stringify(history));
+
+            alert("✅ জমি সফলভাবে যুক্ত হয়েছে!");
+            window.location.href = 'Dashboard.html';
+        }
+
+        function resetMap() {
+            window.location.reload();
+        }
+
+        function locateUser() {
+            map.locate({setView: true, maxZoom: 16});
+        }
+    </script>
+</body>
+</html>

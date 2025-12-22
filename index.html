@@ -2,326 +2,144 @@
 <html lang="en">
 <head>
     <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>Smart Agri Pro</title>
-    
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
-    <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
-    
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
-    <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
-    <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
-
     <style>
-        body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #map { height: 100vh; width: 100%; z-index: 1; background: #e0e0e0; }
+        * { margin: 0; padding: 0; box-sizing: border-box; font-family: 'Segoe UI', sans-serif; scroll-behavior: smooth; }
+        body { background: #fdfdfd; color: #333; overflow-x: hidden; }
 
-        /* বাটন ডিজাইন */
-        #dashboard-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px; }
-        #logout-btn { position: absolute; top: 20px; right: 60px; background: #ff5252; color: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; display: none; align-items: center; gap: 5px; font-size: 14px; }
-        #back-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2001; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; display: none; text-decoration: none; color: #333; align-items: center; gap: 5px; }
+        /* ১. মেনুবার */
+        .navbar { display: flex; justify-content: space-between; align-items: center; background: rgba(255, 255, 255, 0.95); padding: 15px 20px; position: fixed; top: 0; left: 0; width: 100%; z-index: 1000; box-shadow: 0 2px 10px rgba(0,0,0,0.05); }
+        .logo { font-size: 22px; font-weight: 700; color: #2E7D32; display: flex; align-items: center; gap: 8px; }
 
-        #start-btn-container { position: absolute; bottom: 50px; left: 50%; transform: translateX(-50%); z-index: 1000; width: 80%; display: flex; justify-content: center; }
-        .btn-start { background: #4CAF50; color: white; border: none; padding: 15px 30px; border-radius: 50px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); cursor: pointer; display: flex; align-items: center; gap: 10px; width: 100%; justify-content: center; }
-        
-        .controls { position: absolute; bottom: 30px; left: 50%; transform: translateX(-50%); display: flex; gap: 15px; z-index: 1000; display: none; }
-        .btn-action { background: white; border: none; padding: 15px 20px; border-radius: 50px; font-size: 18px; font-weight: bold; box-shadow: 0 4px 15px rgba(0,0,0,0.3); display: flex; align-items: center; gap: 10px; cursor: pointer; }
-        .btn-add { background: #39FF14; color: #000; } .btn-undo { background: #fff; color: #ff5252; } .btn-done { background: #2196F3; color: white; display: none; }
-        
-        .gps-btn { position: absolute; bottom: 130px; right: 20px; background: white; width: 50px; height: 50px; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #333; box-shadow: 0 4px 10px rgba(0,0,0,0.3); z-index: 1000; cursor: pointer; }
-        .crosshair { position: absolute; top: 50%; left: 50%; transform: translate(-50%, -50%); z-index: 1000; pointer-events: none; display: none; }
-        .crosshair i { font-size: 40px; color: #fff; text-shadow: 0 0 5px #000; }
-        .info-top { position: absolute; bottom: 100px; left: 50%; transform: translateX(-50%); background: rgba(0,0,0,0.7); color: white; padding: 8px 20px; border-radius: 20px; z-index: 1000; font-size: 14px; white-space: nowrap; display: none; }
-        
-        #form-box { position: absolute; bottom: 0; left: 0; width: 100%; background: white; padding: 25px; border-radius: 20px 20px 0 0; box-shadow: 0 -5px 20px rgba(0,0,0,0.2); z-index: 2000; transition: transform 0.3s ease; transform: translateY(100%); max-height: 85vh; overflow-y: auto; }
-        #form-box.active { transform: translateY(0); }
-        
-        input, select { width: 100%; padding: 12px; margin: 8px 0; border: 1px solid #ddd; border-radius: 8px; box-sizing: border-box; font-size: 16px; }
-        .submit-btn { width: 100%; background: #4CAF50; color: white; padding: 15px; border: none; border-radius: 10px; font-weight: bold; font-size: 16px; margin-top: 10px; }
-        .cancel-btn { background: transparent; color: #777; width: 100%; padding: 10px; border: none; margin-top: 5px; }
-        
-        #scanner-line { position: absolute; top: 0; left: 0; width: 100%; height: 5px; background: #39FF14; box-shadow: 0 0 15px #39FF14; z-index: 1500; display: none; animation: scanMove 2s infinite linear; }
-        @keyframes scanMove { 0% { top: 0; } 50% { top: 100%; } 100% { top: 0; } }
-        #scan-btn { width: 100%; background: linear-gradient(45deg, #2196F3, #21CBF3); color: white; padding: 15px; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 15px; margin-bottom: 10px; display: flex; align-items: center; justify-content: center; gap: 10px; font-size: 16px; box-shadow: 0 4px 10px rgba(33, 150, 243, 0.3); }
-        #analysis-result { background: #e3f2fd; padding: 15px; border-radius: 8px; margin-top: 10px; border-left: 5px solid #2196F3; display: none; animation: fadeIn 0.5s; }
-        @keyframes fadeIn { from { opacity: 0; } to { opacity: 1; } }
+        /* ২. হিরো সেকশন (মার্কেটিং) */
+        .hero { height: 90vh; background: linear-gradient(rgba(0,0,0,0.4), rgba(0,0,0,0.6)), url('https://images.unsplash.com/photo-1625246333195-78d9c38ad449?w=800'); background-size: cover; background-position: center; background-attachment: fixed; display: flex; flex-direction: column; justify-content: center; align-items: center; text-align: center; color: white; padding: 20px; }
+        .hero h1 { font-size: 32px; font-weight: 800; margin-bottom: 15px; }
+        .hero p { font-size: 16px; margin-bottom: 30px; max-width: 600px; line-height: 1.6; }
+        .cta-btn { background: #4CAF50; color: white; padding: 14px 35px; border-radius: 50px; text-decoration: none; font-weight: bold; cursor: pointer; border: none; font-size: 16px; }
 
-        /* মডাল */
-        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0,0,0,0.6); backdrop-filter: blur(3px); display: none; justify-content: center; align-items: center; z-index: 5000; }
-        .modal-box { background: white; padding: 25px; width: 90%; max-width: 350px; border-radius: 15px; position: relative; text-align: center; box-shadow: 0 10px 30px rgba(0,0,0,0.3); }
-        .close-btn { position: absolute; top: 15px; right: 15px; font-size: 20px; cursor: pointer; color: #aaa; }
-        .auth-input { background: #f9f9f9; }
-        .auth-btn { width: 100%; padding: 12px; background: #4CAF50; color: white; border: none; border-radius: 8px; font-weight: bold; cursor: pointer; margin-top: 10px; }
-        .toggle-link { margin-top: 15px; font-size: 13px; color: #555; }
-        .toggle-link span { color: #2196F3; font-weight: bold; cursor: pointer; }
+        /* ৩. প্রজেক্ট ডিটেইলস */
+        .about-section { padding: 60px 20px; text-align: center; background: #fff; }
+        .section-title { font-size: 26px; color: #2E7D32; margin-bottom: 20px; font-weight: bold; }
+        .about-desc { font-size: 15px; color: #555; line-height: 1.8; max-width: 800px; margin: 0 auto; }
+
+        /* ৪. সার্ভিস সমূহ */
+        .services-section { padding: 40px 20px; background: #f9f9f9; text-align: center; }
+        .services-grid { display: flex; flex-direction: column; gap: 15px; max-width: 600px; margin: 20px auto 0; }
+        .service-card { background: white; padding: 20px; border-radius: 15px; display: flex; align-items: center; gap: 20px; box-shadow: 0 4px 10px rgba(0,0,0,0.03); border-left: 5px solid #4CAF50; cursor: pointer; text-align: left; }
+        .s-icon { width: 50px; height: 50px; background: #e8f5e9; border-radius: 50%; display: flex; align-items: center; justify-content: center; font-size: 22px; color: #2E7D32; flex-shrink: 0; }
+        .s-info h3 { font-size: 18px; margin-bottom: 5px; }
+        .s-info p { font-size: 13px; color: #666; }
+
+        /* ৫. ফ্রি টুলস (জমি স্ক্যানার সহ আপডেট করা হয়েছে) */
+        .tools-section { padding: 60px 20px; text-align: center; background: #fff; }
+        .tools-container { display: flex; justify-content: center; gap: 15px; flex-wrap: wrap; margin-top: 25px; }
+        .tool-box { background: #f1f8e9; padding: 20px; border-radius: 12px; width: 30%; min-width: 100px; max-width: 130px; text-align: center; cursor: pointer; text-decoration: none; color: #333; border: 1px solid #c8e6c9; transition: 0.3s; }
+        .tool-icon { font-size: 24px; color: #2E7D32; margin-bottom: 8px; }
+        .tool-text { font-weight: bold; font-size: 13px; }
+
+        /* ৬. পপ-আপ মডাল */
+        .modal-overlay { position: fixed; top: 0; left: 0; width: 100%; height: 100%; background: rgba(0, 0, 0, 0.6); z-index: 5000; display: none; justify-content: center; align-items: center; backdrop-filter: blur(5px); }
+        .modal-box { background: white; width: 90%; max-width: 350px; padding: 30px; border-radius: 20px; position: relative; }
+        .close-btn { position: absolute; top: 15px; right: 20px; font-size: 24px; color: #aaa; cursor: pointer; }
+        .tabs { display: flex; border-bottom: 1px solid #eee; margin-bottom: 20px; }
+        .tab { flex: 1; padding: 10px; cursor: pointer; text-align: center; color: #888; font-weight: bold; }
+        .tab.active { color: #2E7D32; border-bottom: 3px solid #2E7D32; }
+        input { width: 100%; padding: 12px; margin-top: 15px; background: #f9f9f9; border: 1px solid #ddd; border-radius: 8px; outline: none; }
+        .btn-full { width: 100%; padding: 14px; background: #4CAF50; color: white; border: none; border-radius: 10px; font-weight: bold; margin-top: 20px; cursor: pointer; }
         .hidden { display: none; }
 
-        .leaflet-control-geocoder { border: none !important; border-radius: 8px !important; box-shadow: 0 4px 10px rgba(0,0,0,0.2) !important; margin-top: 10px !important; margin-left: 10px !important; }
+        .footer { background: #111; color: #777; text-align: center; padding: 30px; font-size: 13px; }
     </style>
 </head>
 <body>
-    <div id="map"></div>
-    <div id="scanner-line"></div>
 
-    <a id="dashboard-btn" href="Dashboard.html"><i class="fas fa-list"></i> অর্ডার লিস্ট</a>
-    <div id="logout-btn" onclick="logout()"><i class="fas fa-sign-out-alt"></i></div>
-    <a id="back-btn" href="Dashboard.html"><i class="fas fa-arrow-left"></i> ফিরে যান</a>
+    <nav class="navbar">
+        <div class="logo"><i class="fas fa-seedling"></i> Smart Agri</div>
+    </nav>
 
-    <div class="crosshair" id="crosshair-icon"><i class="fas fa-plus-circle"></i></div>
-    <div class="gps-btn" onclick="locateUser()"><i class="fas fa-crosshairs"></i></div>
-    <div class="info-top" id="msg-box">টার্গেটটি জমির কোণায় নিন</div>
+    <section class="hero">
+        <h1>প্রযুক্তির ছোঁয়ায় আধুনিক কৃষি</h1>
+        <p>ড্রোন, স্যাটেলাইট এবং এআই প্রযুক্তি এখন আপনার হাতের মুঠোয়।</p>
+        <button class="cta-btn" onclick="showLoginModal()">অ্যাকাউন্টে প্রবেশ করুন</button>
+    </section>
 
-    <div id="start-btn-container">
-        <button class="btn-start" onclick="startMappingMode()">
-            <i class="fas fa-draw-polygon"></i> জমি মাপা শুরু করুন
-        </button>
-    </div>
+    <section class="about-section">
+        <h2 class="section-title">আমাদের প্রজেক্ট সম্পর্কে</h2>
+        <p class="about-desc">
+            Smart Agri Pro একটি ডিজিটাল কৃষি প্ল্যাটফর্ম। আমরা স্যাটেলাইট এবং এআই ব্যবহার করে কৃষকদের মাটির গুণাগুণ এবং ফসলের সঠিক পরামর্শ দেই।
+        </p>
+    </section>
 
-    <div class="controls" id="control-bar">
-        <button class="btn-action btn-undo" onclick="undoPoint()"><i class="fas fa-undo"></i></button>
-        <button class="btn-action btn-add" onclick="addPoint()"><i class="fas fa-map-pin"></i> পয়েন্ট</button>
-        <button class="btn-action btn-done" id="done-btn" onclick="finishDrawing()"><i class="fas fa-check"></i> শেষ</button>
-    </div>
-
-    <div id="form-box">
-        <h2 style="margin:0 0 5px 0; color:#4CAF50;">অর্ডার ফর্ম</h2>
-        <p style="font-size: 14px; color:#555;">স্বাগতম, <strong id="display-name" style="color:#2E7D32">Guest</strong>!</p>
-        <p style="font-size: 16px; margin-bottom: 10px;">জমির মাপ: <strong id="area-val" style="color:#2196F3">0</strong> শতাংশ</p>
-        
-        <label style="font-weight:bold; color:#555; margin-top:10px; display:block;">কি সেবা নিতে চান?</label>
-        <select id="serviceType" style="background:#f9f9f9;">
-            <option value="Land Measurement">শুধুমাত্র জমি মাপা</option>
-            <option value="Soil Testing">মাটি পরীক্ষা (Satellite)</option>
-            <option value="Drone Spraying">ড্রোন দিয়ে স্প্রে</option>
-            <option value="Auto Harvesting">রোবট দিয়ে ফসল কাটা</option>
-        </select>
-
-        <button id="scan-btn" onclick="scanLand()"><i class="fas fa-satellite-dish"></i> স্যাটেলাইট চেক (Optional)</button>
-        <div id="analysis-result">
-            <div style="font-weight:bold; color:#1565C0;">📡 রিপোর্ট:</div>
-            <span id="scan-status">...</span>
+    <section class="services-section">
+        <h2 class="section-title">সার্ভিসসমূহ</h2>
+        <div class="services-grid">
+            <div class="service-card" onclick="showLoginModal()">
+                <div class="s-icon"><i class="fas fa-plane-departure"></i></div>
+                <div class="s-info"><h3>ড্রোন স্প্রে</h3><p>নিখুঁতভাবে সার বা কীটনাশক স্প্রে করুন।</p></div>
+            </div>
+            <div class="service-card" onclick="showLoginModal()">
+                <div class="s-icon"><i class="fas fa-tractor"></i></div>
+                <div class="s-info"><h3>অটো হারভেস্ট</h3><p>মেশিন দিয়ে দ্রুত ফসল কাটার সুবিধা।</p></div>
+            </div>
         </div>
+    </section>
 
-        <button class="submit-btn" onclick="checkAuthAndSave()">অর্ডার কনফার্ম করুন</button>
-        <button class="cancel-btn" onclick="resetMap()">বাতিল করুন</button>
-    </div>
+    <section class="tools-section">
+        <h2 class="section-title">ফ্রি টুলস</h2>
+        <div class="tools-container">
+            <a href="map.html?mode=measure" class="tool-box">
+                <div class="tool-icon"><i class="fas fa-ruler-combined"></i></div>
+                <div class="tool-text">জমি মাপুন</div>
+            </a>
+            <a href="map.html?mode=scan" class="tool-box">
+                <div class="tool-icon"><i class="fas fa-satellite"></i></div>
+                <div class="tool-text">জমি স্ক্যানার</div>
+            </a>
+            <a href="scanner.html" class="tool-box">
+                <div class="tool-icon"><i class="fas fa-search-plus"></i></div>
+                <div class="tool-text">রোগ নির্ণয়</div>
+            </a>
+        </div>
+    </section>
 
-    <div class="modal-overlay" id="auth-modal">
+    <div class="modal-overlay" id="loginModal">
         <div class="modal-box">
             <span class="close-btn" onclick="closeLoginModal()">&times;</span>
-            <div id="login-view">
-                <h2 style="color:#4CAF50; margin-bottom:5px;">অর্ডার করতে লগইন করুন</h2>
-                <input type="tel" id="in-login-phone" class="auth-input" placeholder="মোবাইল নাম্বার">
-                <button class="auth-btn" onclick="inAppLogin()">লগইন করুন</button>
-                <div class="toggle-link">একাউন্ট নেই? <span onclick="switchView('register')">রেজিস্ট্রেশন করুন</span></div>
+            <div class="tabs">
+                <div class="tab active" onclick="switchTab('login')" id="tab-login">লগইন</div>
+                <div class="tab" onclick="switchTab('register')" id="tab-register">রেজিস্ট্রেশন</div>
             </div>
-            <div id="register-view" class="hidden">
-                <h2 style="color:#2196F3; margin-bottom:5px;">নতুন একাউন্ট</h2>
-                <input type="text" id="in-reg-name" class="auth-input" placeholder="আপনার নাম">
-                <input type="tel" id="in-reg-phone" class="auth-input" placeholder="মোবাইল নাম্বার">
-                <button class="auth-btn" style="background:#2196F3;" onclick="inAppRegister()">রেজিস্ট্রেশন করুন</button>
-                <div class="toggle-link">আগেই একাউন্ট আছে? <span onclick="switchView('login')">লগইন করুন</span></div>
+            <div id="view-login">
+                <input type="tel" id="login-phone" placeholder="মোবাইল নাম্বার">
+                <button class="btn-full" onclick="handleLogin()">লগইন করুন</button>
+            </div>
+            <div id="view-register" class="hidden">
+                <input type="text" id="reg-name" placeholder="আপনার নাম">
+                <input type="tel" id="reg-phone" placeholder="মোবাইল নাম্বার">
+                <button class="btn-full" onclick="handleRegister()">রেজিস্ট্রেশন করুন</button>
             </div>
         </div>
     </div>
 
+    <footer class="footer">
+        <p>&copy; 2025 Smart Agri Solutions. All Rights Reserved.</p>
+    </footer>
+
     <script>
-        var map;
-        var points = []; 
-        var markers = []; 
-        var polygonLayer = null; 
-        var finalArea = 0; 
-        var aiSuggestion = "";
-        var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
-
-        // --- ফাংশনগুলো Global Scope ---
-        function updateUI() {
-            var userName = localStorage.getItem('user_name');
-            if(userName) {
-                document.getElementById('display-name').innerText = userName;
-                document.getElementById('logout-btn').style.display = 'flex';
-            } else {
-                document.getElementById('display-name').innerText = "Guest";
-                document.getElementById('logout-btn').style.display = 'none';
-            }
+        function showLoginModal() { document.getElementById('loginModal').style.display = 'flex'; }
+        function closeLoginModal() { document.getElementById('loginModal').style.display = 'none'; }
+        function switchTab(type) {
+            const isLogin = type === 'login';
+            document.getElementById('view-login').classList.toggle('hidden', !isLogin);
+            document.getElementById('view-register').classList.toggle('hidden', isLogin);
+            document.getElementById('tab-login').classList.toggle('active', isLogin);
+            document.getElementById('tab-register').classList.toggle('active', !isLogin);
         }
-
-        function startMappingMode() {
-            document.getElementById('start-btn-container').style.display = 'none';
-            document.getElementById('control-bar').style.display = 'flex';
-            document.getElementById('crosshair-icon').style.display = 'block';
-            document.getElementById('msg-box').style.display = 'block';
-        }
-
-        function addPoint() {
-            if(!map) return;
-            var center = map.getCenter(); 
-            points.push([center.lat, center.lng]);
-            var marker = L.circleMarker([center.lat, center.lng], { color: 'white', fillColor: '#39FF14', fillOpacity: 1, radius: 5 }).addTo(map);
-            markers.push(marker); 
-            drawPolygon();
-            if(points.length >= 3) { document.getElementById('done-btn').style.display = 'flex'; document.getElementById('msg-box').innerText = "পরের কোণায় যান বা শেষ চাপুন"; }
-        }
-
-        function drawPolygon() { 
-            if (polygonLayer) map.removeLayer(polygonLayer); 
-            if (points.length > 0) { polygonLayer = L.polygon(points, { color: '#39FF14', weight: 3, fillColor: '#39FF14', fillOpacity: 0.3 }).addTo(map); } 
-        }
-
-        function undoPoint() { 
-            if(points.length > 0) { 
-                points.pop(); 
-                map.removeLayer(markers.pop()); 
-                drawPolygon(); 
-                if(points.length < 3) document.getElementById('done-btn').style.display = 'none'; 
-            } 
-        }
-
-        function finishDrawing() {
-            var turfPoints = [...points, points[0]]; 
-            var geoJsonPoints = turfPoints.map(p => [p[1], p[0]]); 
-            var polygon = turf.polygon([geoJsonPoints]);
-            var areaSqMeters = turf.area(polygon); 
-            finalArea = (areaSqMeters / 40.4686).toFixed(2);
-            map.fitBounds(polygonLayer.getBounds(), {padding: [50, 50]});
-            document.getElementById('area-val').innerText = finalArea;
-            document.getElementById('form-box').classList.add('active');
-            document.getElementById('control-bar').style.display = 'none';
-            document.getElementById('crosshair-icon').style.display = 'none';
-            document.getElementById('msg-box').style.display = 'none';
-        }
-
-        function resetMap() {
-            points = []; markers.forEach(m => map.removeLayer(m)); markers = []; if(polygonLayer) map.removeLayer(polygonLayer);
-            document.getElementById('form-box').classList.remove('active');
-            document.getElementById('start-btn-container').style.display = 'flex';
-            document.getElementById('control-bar').style.display = 'none';
-            document.getElementById('crosshair-icon').style.display = 'none';
-            document.getElementById('done-btn').style.display = 'none';
-            document.getElementById('msg-box').style.display = 'none';
-            document.getElementById('analysis-result').style.display = 'none';
-            document.getElementById('scan-btn').innerText = "স্যাটেলাইট চেক"; document.getElementById('scan-btn').disabled = false;
-        }
-
-        function scanLand() {
-            var scanner = document.getElementById('scanner-line'); var btn = document.getElementById('scan-btn'); var resultBox = document.getElementById('analysis-result'); var status = document.getElementById('scan-status');
-            scanner.style.display = 'block'; btn.disabled = true; btn.innerText = "স্ক্যান চলছে..."; resultBox.style.display = 'none';
-            setTimeout(function() {
-                scanner.style.display = 'none'; btn.innerText = "✔ অ্যানালাইসিস সম্পন্ন"; resultBox.style.display = 'block';
-                var center = map.getCenter(); var lat = center.lat; var soilType = "দোআঁশ মাটি"; var crop = "আলু, গম";
-                if(lat > 24) { soilType = "বেলে-দোঁআশ"; crop = "ভুট্টা, বাদাম"; } else if (lat < 23) { soilType = "লবণাক্ত মাটি"; crop = "নারকেল"; }
-                aiSuggestion = "মাটি: " + soilType + "। ফসল: " + crop; status.innerHTML = "<strong>মাটি:</strong> " + soilType + "<br><strong>পরামর্শ:</strong> " + crop;
-            }, 3000);
-        }
-
-        function locateUser() { 
-            var btn = document.querySelector('.gps-btn'); 
-            btn.style.background = '#ddd'; 
-            map.locate({ setView: true, maxZoom: 18, enableHighAccuracy: true, timeout: 8000 }); 
-        }
-
-        function logout() {
-            if(confirm("লগআউট করতে চান?")) {
-                localStorage.removeItem('user_phone');
-                localStorage.removeItem('user_name');
-                updateUI();
-                window.location.href = 'login.html';
-            }
-        }
-
-        function checkAuthAndSave() {
-            var phone = localStorage.getItem('user_phone');
-            if(phone) { saveData(phone, localStorage.getItem('user_name')); } 
-            else { document.getElementById('auth-modal').style.display = 'flex'; }
-        }
-        function closeLoginModal() { document.getElementById('auth-modal').style.display = 'none'; }
-        function switchView(view) {
-            if(view === 'register') { document.getElementById('login-view').classList.add('hidden'); document.getElementById('register-view').classList.remove('hidden'); }
-            else { document.getElementById('register-view').classList.add('hidden'); document.getElementById('login-view').classList.remove('hidden'); }
-        }
-        function inAppLogin() {
-            var phone = document.getElementById('in-login-phone').value.trim();
-            if(!phone) { alert("নাম্বার দিন!"); return; }
-            fetch(scriptURL).then(res => res.json()).then(data => {
-                var user = data.find(item => item.phone == phone || "0"+item.phone == phone);
-                if(user) { localStorage.setItem('user_name', user.name); localStorage.setItem('user_phone', user.phone); updateUI(); closeLoginModal(); saveData(user.phone, user.name); }
-                else { alert("একাউন্ট নেই! রেজিস্ট্রেশন করুন।"); switchView('register'); document.getElementById('in-reg-phone').value = phone; }
-            });
-        }
-        function inAppRegister() {
-            var name = document.getElementById('in-reg-name').value; var phone = document.getElementById('in-reg-phone').value;
-            if(!name || !phone) return;
-            localStorage.setItem('user_name', name); localStorage.setItem('user_phone', phone);
-            updateUI(); closeLoginModal(); saveData(phone, name);
-        }
-        function saveData(phone, name) {
-            var service = document.getElementById('serviceType').value; var btn = document.querySelector('.submit-btn'); btn.innerText = "অর্ডার প্লেস হচ্ছে...";
-            var data = { name: name, phone: phone, landSize: finalArea, points: points, suggestion: aiSuggestion, serviceType: service };
-            fetch(scriptURL, { method: 'POST', mode: 'no-cors', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(data) })
-            .then(() => { alert("✅ অর্ডার সফল!"); resetMap(); btn.innerText = "অর্ডার কনফার্ম করুন"; })
-            .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "অর্ডার কনফার্ম করুন"; });
-        }
-
-        // ৩. ম্যাপ ইনিশিয়ালাইজেশন এবং অটো-ডিটেক্ট লজিক
-        window.onload = function() {
-            updateUI();
-
-            try {
-                map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
-
-                // 🔥 অটো ডিটেকশন লজিক 🔥
-                var isLocalOrApp = window.location.protocol === 'file:' || navigator.userAgent.includes('Messenger');
-                
-                var googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                    maxZoom: 20, attribution: '© Google', referrerPolicy: 'no-referrer'
-                });
-
-                var esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    maxZoom: 18, attribution: 'Esri'
-                });
-
-                // যদি অ্যাপ বা লোকাল ফাইল হয় -> Esri (নিরাপদ)
-                // যদি ক্রোম বা ওয়েবসাইট হয় -> Google (বেস্ট কোয়ালিটি)
-                if (isLocalOrApp) {
-                    esriSat.addTo(map); 
-                } else {
-                    googleSat.addTo(map);
-                }
-
-                // লেয়ার কন্ট্রোল (User can switch)
-                var baseMaps = { "Google Satellite": googleSat, "Professional Map (Esri)": esriSat };
-                L.control.layers(baseMaps).addTo(map);
-
-                // জিওকোডার এবং অন্যান্য
-                L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
-                .on('markgeocode', function(e) {
-                    var bbox = e.geocode.bbox;
-                    var poly = L.polygon([bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()]);
-                    map.fitBounds(poly.getBounds());
-                }).addTo(map);
-
-                map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
-
-                // আগের ডাটা লোড
-                var storedData = localStorage.getItem('viewLand');
-                if(storedData) {
-                    var landPoints = JSON.parse(storedData);
-                    showSavedLand(landPoints);
-                    localStorage.removeItem('viewLand');
-                }
-            } catch(e) {
-                console.log("Map Error: " + e); // এরর হলেও অ্যাপ ক্র্যাশ করবে না
-            }
-        };
-
-        function showSavedLand(savedPoints) {
-            document.getElementById('start-btn-container').style.display = 'none';
-            document.getElementById('dashboard-btn').style.display = 'none';
-            document.getElementById('logout-btn').style.display = 'none';
-            document.getElementById('back-btn').style.display = 'flex';
-            var polygon = L.polygon(savedPoints, { color: '#39FF14', weight: 4, fillColor: '#39FF14', fillOpacity: 0.5 }).addTo(map);
-            map.fitBounds(polygon.getBounds(), {padding: [50, 50]});
+        function handleLogin() { 
+            let p = document.getElementById('login-phone').value;
+            if(p) { localStorage.setItem('user_phone', p); window.location.href = 'Dashboard.html'; } 
         }
     </script>
 </body>
