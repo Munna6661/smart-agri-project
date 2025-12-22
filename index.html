@@ -5,19 +5,21 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no">
     <title>Smart Agri Pro</title>
     
-    <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" />
+    <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.css" />
     <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
     <link rel="stylesheet" href="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.css" />
     
-    <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.9.4/leaflet.js"></script>
     <script src="https://unpkg.com/leaflet-control-geocoder/dist/Control.Geocoder.js"></script>
     <script src="https://unpkg.com/@turf/turf@6/turf.min.js"></script>
 
     <style>
         body, html { margin: 0; padding: 0; height: 100%; width: 100%; overflow: hidden; font-family: 'Segoe UI', sans-serif; }
-        #map { height: 100vh; width: 100%; z-index: 1; background: #e0e0e0; }
+        
+        /* ম্যাপের ব্যাকগ্রাউন্ড সাদা */
+        #map { height: 100vh; width: 100%; z-index: 1; background: #ffffff; }
 
-        /* বাটন ডিজাইন */
+        /* বাটন ও ডিজাইন */
         #dashboard-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; color: #333; display: flex; align-items: center; gap: 5px; }
         #logout-btn { position: absolute; top: 20px; right: 60px; background: #ff5252; color: white; padding: 10px 15px; border-radius: 8px; z-index: 2000; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; text-decoration: none; display: none; align-items: center; gap: 5px; font-size: 14px; }
         #back-btn { position: absolute; top: 20px; left: 20px; background: white; padding: 10px 15px; border-radius: 8px; z-index: 2001; box-shadow: 0 2px 10px rgba(0,0,0,0.2); font-weight: bold; cursor: pointer; display: none; text-decoration: none; color: #333; align-items: center; gap: 5px; }
@@ -135,7 +137,7 @@
         var aiSuggestion = "";
         var scriptURL = "https://script.google.com/macros/s/AKfycbxPRbeqGFU_W-Ucx-www7Fn2v_6Q03wJ0IW_EUZvFmqYUBCf-N4OuzkHs_5vNSivrfg/exec"; 
 
-        // --- ফাংশনগুলো Global Scope ---
+        // --- ফাংশন ---
         function updateUI() {
             var userName = localStorage.getItem('user_name');
             if(userName) {
@@ -263,38 +265,41 @@
             .catch(err => { alert("❌ সমস্যা হয়েছে!"); btn.innerText = "অর্ডার কনফার্ম করুন"; });
         }
 
-        // ৩. ম্যাপ ইনিশিয়ালাইজেশন এবং অটো-ডিটেক্ট লজিক
+        // --- ম্যাপ ইনিশিয়ালাইজেশন ---
         window.onload = function() {
             updateUI();
 
             try {
-                map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
-
-                // 🔥 অটো ডিটেকশন লজিক 🔥
-                var isLocalOrApp = window.location.protocol === 'file:' || navigator.userAgent.includes('Messenger');
-                
-                var googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
-                    maxZoom: 20, attribution: '© Google', referrerPolicy: 'no-referrer'
-                });
-
-                var esriSat = L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', {
-                    maxZoom: 18, attribution: 'Esri'
-                });
-
-                // যদি অ্যাপ বা লোকাল ফাইল হয় -> Esri (নিরাপদ)
-                // যদি ক্রোম বা ওয়েবসাইট হয় -> Google (বেস্ট কোয়ালিটি)
-                if (isLocalOrApp) {
-                    esriSat.addTo(map); 
-                } else {
-                    googleSat.addTo(map);
+                if (typeof L === 'undefined') {
+                    alert("Leaflet লাইব্রেরি লোড হয়নি! ইন্টারনেট চেক করুন।");
+                    return;
                 }
 
-                // লেয়ার কন্ট্রোল (User can switch)
-                var baseMaps = { "Google Satellite": googleSat, "Professional Map (Esri)": esriSat };
+                map = L.map('map', { zoomControl: false }).setView([23.8103, 90.4125], 14);
+
+                // 🔥 ১. ডিফল্ট ম্যাপ: OpenStreetMap (OSM) 🔥
+                // এটি ১০০% নিশ্চিত কাজ করবে কারণ এটি GitHub এ ব্লক হয় না
+                var osmLayer = L.tileLayer('https://tile.openstreetmap.org/{z}/{x}/{y}.png', {
+                    maxZoom: 19,
+                    attribution: '© OpenStreetMap'
+                }).addTo(map);
+
+                // ২. অপশনাল ম্যাপ: Google Satellite
+                var googleSat = L.tileLayer('https://mt1.google.com/vt/lyrs=y&x={x}&y={y}&z={z}', {
+                    maxZoom: 20,
+                    attribution: '© Google',
+                    referrerPolicy: 'no-referrer'
+                });
+
+                // লেয়ার কন্ট্রোল
+                var baseMaps = {
+                    "Normal Map (Safe)": osmLayer,
+                    "Google Satellite": googleSat
+                };
                 L.control.layers(baseMaps).addTo(map);
 
-                // জিওকোডার এবং অন্যান্য
+                // জিওকোডার
                 L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
                 .on('markgeocode', function(e) {
                     var bbox = e.geocode.bbox;
-                    var poly = L.polygon(
+                    var poly = L.polygon([bbo
