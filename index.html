@@ -302,4 +302,34 @@
                 L.Control.geocoder({ defaultMarkGeocode: false, placeholder: "এলাকা খুঁজুন...", collapsed: true })
                 .on('markgeocode', function(e) {
                     var bbox = e.geocode.bbox;
-                    var poly = L.polygon([bbo
+                    var poly = L.polygon(                    [bbox.getSouthEast(), bbox.getNorthEast(), bbox.getNorthWest(), bbox.getSouthWest()]
+                ]);
+                    map.fitBounds(poly.getBounds());
+                }).addTo(map);
+
+                map.on('locationfound', function(e) { document.querySelector('.gps-btn').style.background = 'white'; L.circle(e.latlng, { radius: 10, color: 'blue', fillOpacity: 0.2 }).addTo(map); });
+
+                // আগের সেভ করা ডাটা লোড
+                var storedData = localStorage.getItem('viewLand');
+                if(storedData) {
+                    var landPoints = JSON.parse(storedData);
+                    showSavedLand(landPoints);
+                    localStorage.removeItem('viewLand');
+                }
+            } catch(e) {
+                console.log("Map Error: " + e);
+            }
+        };
+
+        function showSavedLand(savedPoints) {
+            document.getElementById('start-btn-container').style.display = 'none';
+            document.getElementById('dashboard-btn').style.display = 'none';
+            document.getElementById('logout-btn').style.display = 'none';
+            document.getElementById('back-btn').style.display = 'flex';
+            var polygon = L.polygon(savedPoints, { color: '#39FF14', weight: 4, fillColor: '#39FF14', fillOpacity: 0.5 }).addTo(map);
+            map.fitBounds(polygon.getBounds(), {padding: [50, 50]});
+        }
+    </script>
+</body>
+</html>
+
